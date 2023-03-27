@@ -31,7 +31,7 @@ A minimal static file middleware for chubbyts-http-types.
 Through [NPM](https://www.npmjs.com) as [@chubbyts/chubbyts-static-file][1].
 
 ```ts
-npm i @chubbyts/chubbyts-static-file@^1.0.0
+npm i @chubbyts/chubbyts-static-file@^1.0.1
 ```
 
 ## Usage

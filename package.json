@@ -1,14 +1,11 @@
 {
   "name": "@chubbyts/chubbyts-static-file",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A minimal static file middleware for chubbyts-http-types.",
   "keywords": [
     "chubbyts",
-    "microframework",
-    "micro framework",
-    "middleware",
-    "handler",
-    "psr-15"
+    "static-file",
+    "psr-7"
   ],
   "author": "Dominik Zogg",
   "license": "MIT",
