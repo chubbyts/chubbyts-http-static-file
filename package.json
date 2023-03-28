@@ -1,7 +1,7 @@
 {
   "name": "@chubbyts/chubbyts-static-file",
-  "version": "1.0.1",
-  "description": "A minimal static file middleware for chubbyts-http-types.",
+  "version": "1.1.0",
+  "description": "A minimal static file handler for chubbyts-http-types.",
   "keywords": [
     "chubbyts",
     "static-file",
@@ -43,6 +43,7 @@
     "node": ">=14"
   },
   "dependencies": {
+    "@chubbyts/chubbyts-http-error": "^2.0.2",
     "@chubbyts/chubbyts-http-types": "^1.0.1"
   },
   "devDependencies": {

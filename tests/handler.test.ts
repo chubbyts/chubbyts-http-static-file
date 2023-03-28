@@ -1,10 +1,11 @@
 import { describe, expect, test } from '@jest/globals';
 import { Response, ServerRequest } from '@chubbyts/chubbyts-http-types/dist/message';
-import { createStaticFileMiddleware } from '../src/middleware';
+import { createStaticFileHandler } from '../src/handler';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import { createReadStream, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { Duplex, PassThrough, Stream } from 'stream';
+import { HttpError } from '@chubbyts/chubbyts-http-error/dist/http-error';
 
 const jpegHex = `
 ffd8ffe000104a46494600010101012c012c0000fffe0013437265617465
@@ -60,14 +61,14 @@ const readStream = async (stream: Stream) => {
   });
 };
 
-describe('middleware', () => {
+describe('handler', () => {
   test('with not supported algorithm', async () => {
     const responseFactory = jest.fn();
     const streamFromFileFactory = jest.fn();
     const publicDirectory = `${tmpdir()}/${randomBytes(16).toString('hex')}`;
 
     try {
-      createStaticFileMiddleware(responseFactory, streamFromFileFactory, '/unknown', 'some-algo');
+      createStaticFileHandler(responseFactory, streamFromFileFactory, '/unknown', 'some-algo');
       throw new Error('Missing error');
     } catch (e) {
       expect(e).toBeInstanceOf(Error);
@@ -80,13 +81,6 @@ describe('middleware', () => {
 
   test('with missing file', async () => {
     const request = { uri: { path: '/test.jpg' } } as ServerRequest;
-    const response = {} as Response;
-
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
-
-      return response;
-    });
 
     const responseFactory = jest.fn();
     const streamFromFileFactory = jest.fn();
@@ -94,13 +88,18 @@ describe('middleware', () => {
 
     mkdirSync(publicDirectory, { recursive: true });
 
-    const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
+    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
 
-    await middleware(request, handler);
+    try {
+      await handler(request);
+      throw new Error('Missing error');
+    } catch (e) {
+      expect(e).toBeInstanceOf(HttpError);
+      expect(e).toMatchInlineSnapshot(`[Error: Not Found]`);
+    }
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(handler).toHaveBeenCalledTimes(1);
     expect(responseFactory).toHaveBeenCalledTimes(0);
     expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
   });
@@ -114,71 +113,23 @@ describe('middleware', () => {
     mkdirSync(filepath);
 
     const request = { uri: { path } } as ServerRequest;
-    const response = {} as Response;
-
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
-
-      return response;
-    });
 
     const responseFactory = jest.fn();
     const streamFromFileFactory = jest.fn();
 
-    const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
-
-    await middleware(request, handler);
-
-    rmSync(publicDirectory, { recursive: true });
-
-    expect(handler).toHaveBeenCalledTimes(1);
-    expect(responseFactory).toHaveBeenCalledTimes(0);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
-  });
-
-  test('with image and error on response factory', async () => {
-    const publicDirectory = `${tmpdir()}/${randomBytes(16).toString('hex')}`;
-    const path = '/test.jpg';
-    const filepath = publicDirectory + path;
-
-    const data = Buffer.from(jpegHex, 'hex');
-
-    mkdirSync(publicDirectory, { recursive: true });
-
-    writeFileSync(filepath, data);
-
-    const request = { headers: {}, uri: { path } } as ServerRequest;
-    const response = { headers: {} } as Response;
-
-    const error = new Error('something went wrong');
-
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
-
-      return response;
-    });
-
-    const responseFactory = jest.fn((givenStatus) => {
-      expect(givenStatus).toBe(200);
-
-      throw error;
-    });
-
-    const streamFromFileFactory = jest.fn();
-
-    const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
+    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
 
     try {
-      await middleware(request, handler);
+      await handler(request);
       throw new Error('Missing error');
     } catch (e) {
-      expect(e).toBe(error);
+      expect(e).toBeInstanceOf(HttpError);
+      expect(e).toMatchInlineSnapshot(`[Error: Not Found]`);
     }
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(handler).toHaveBeenCalledTimes(0);
-    expect(responseFactory).toHaveBeenCalledTimes(1);
+    expect(responseFactory).toHaveBeenCalledTimes(0);
     expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
   });
 
@@ -196,12 +147,6 @@ describe('middleware', () => {
     const request = { headers: {}, uri: { path } } as ServerRequest;
     const response = { headers: {} } as Response;
 
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
-
-      return response;
-    });
-
     const responseFactory = jest.fn((givenStatus) => {
       expect(givenStatus).toBe(200);
 
@@ -214,11 +159,11 @@ describe('middleware', () => {
       return newStream;
     });
 
-    const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
+    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
 
-    const middlewareResponse = await middleware(request, handler);
+    const handlerResponse = await handler(request);
 
-    expect(middlewareResponse).toEqual({
+    expect(handlerResponse).toEqual({
       ...response,
       body: expect.any(Duplex),
       headers: {
@@ -228,11 +173,10 @@ describe('middleware', () => {
       },
     });
 
-    await readStream(middlewareResponse.body);
+    await readStream(handlerResponse.body);
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(handler).toHaveBeenCalledTimes(0);
     expect(responseFactory).toHaveBeenCalledTimes(1);
     expect(streamFromFileFactory).toHaveBeenCalledTimes(1);
   });
@@ -257,12 +201,6 @@ describe('middleware', () => {
 
     const response = { headers: {}, body: { end } } as unknown as Response;
 
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
-
-      return response;
-    });
-
     const responseFactory = jest.fn((givenStatus) => {
       expect(givenStatus).toBe(304);
 
@@ -271,11 +209,11 @@ describe('middleware', () => {
 
     const streamFromFileFactory = jest.fn();
 
-    const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
+    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
 
-    const middlewareResponse = await middleware(request, handler);
+    const handlerResponse = await handler(request);
 
-    expect(middlewareResponse).toEqual({
+    expect(handlerResponse).toEqual({
       ...response,
       headers: {
         'content-length': ['1229'],
@@ -287,7 +225,6 @@ describe('middleware', () => {
     rmSync(publicDirectory, { recursive: true });
 
     expect(end).toHaveBeenCalledTimes(1);
-    expect(handler).toHaveBeenCalledTimes(0);
     expect(responseFactory).toHaveBeenCalledTimes(1);
     expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
   });
@@ -304,12 +241,6 @@ describe('middleware', () => {
     const request = { headers: {}, uri: { path } } as ServerRequest;
     const response = { headers: {} } as Response;
 
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
-
-      return response;
-    });
-
     const responseFactory = jest.fn((givenStatus) => {
       expect(givenStatus).toBe(200);
 
@@ -322,11 +253,11 @@ describe('middleware', () => {
       return newStream;
     });
 
-    const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
+    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
 
-    const middlewareResponse = await middleware(request, handler);
+    const handlerResponse = await handler(request);
 
-    expect(middlewareResponse).toEqual({
+    expect(handlerResponse).toEqual({
       ...response,
       body: expect.any(Duplex),
       headers: {
@@ -335,11 +266,10 @@ describe('middleware', () => {
       },
     });
 
-    await readStream(middlewareResponse.body);
+    await readStream(handlerResponse.body);
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(handler).toHaveBeenCalledTimes(0);
     expect(responseFactory).toHaveBeenCalledTimes(1);
     expect(streamFromFileFactory).toHaveBeenCalledTimes(1);
   });

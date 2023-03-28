@@ -19,31 +19,40 @@
 
 ## Description
 
-A minimal static file middleware for chubbyts-http-types.
+A minimal static file handler for chubbyts-http-types.
 
 ## Requirements
 
  * node: 14
- * [@chubbyts/chubbyts-http-types][2]: ^1.0.1
+ * [@chubbyts/chubbyts-http-error][2]: ^2.0.2
+ * [@chubbyts/chubbyts-http-types][3]: ^1.0.1
 
 ## Installation
 
 Through [NPM](https://www.npmjs.com) as [@chubbyts/chubbyts-static-file][1].
 
 ```ts
-npm i @chubbyts/chubbyts-static-file@^1.0.1
+npm i @chubbyts/chubbyts-static-file@^1.1.0
 ```
 
 ## Usage
 
 ```ts
-import { createStaticFileMiddleware } from '@chubbyts/chubbyts-static-file/dist/middleware';
+import { createStaticFileHandler } from '@chubbyts/chubbyts-static-file/dist/handler';
 import type { ResponseFactory, StreamFromFileFactory } from '@chubbyts/chubbyts-http-types/dist/message-factory';
+import { createGetRoute } from '@chubbyts/chubbyts-framework/dist/router/route';
 
 const responseFactory: ResponseFactory = ...;
 const streamFromFileFactory: StreamFromFileFactory = ...;
 
-const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, '/public');
+const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, '/path/to/public/directory');
+
+// for example as a fallback route matching everything
+const route = createGetRoute({
+  path: '/(.*)',
+  name: 'static_file',
+  handler,
+});
 ```
 
 ## Copyright
@@ -51,4 +60,5 @@ const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFac
 2023 Dominik Zogg
 
 [1]: https://www.npmjs.com/package/@chubbyts/chubbyts-static-file
-[2]: https://www.npmjs.com/package/@chubbyts/chubbyts-http-types
+[2]: https://www.npmjs.com/package/@chubbyts/chubbyts-http-error
+[3]: https://www.npmjs.com/package/@chubbyts/chubbyts-http-types
