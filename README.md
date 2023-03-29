@@ -32,7 +32,7 @@ A minimal static file handler for chubbyts-http-types.
 Through [NPM](https://www.npmjs.com) as [@chubbyts/chubbyts-static-file][1].
 
 ```ts
-npm i @chubbyts/chubbyts-static-file@^1.1.0
+npm i @chubbyts/chubbyts-static-file@^1.1.1
 ```
 
 ## Usage

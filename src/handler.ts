@@ -43,29 +43,6 @@ const checksum = async (filepath: string, hashAlgorithm: string): Promise<string
   });
 };
 
-const createResponse = (
-  responseFactory: ResponseFactory,
-  mimeTypes: MimeTypes,
-  code: number,
-  filename: string,
-  hash: string,
-): Response => {
-  const extension = extname(filename).slice(1);
-  const mimeType = mimeTypes.get(extension);
-
-  const response = responseFactory(code);
-
-  return {
-    ...response,
-    headers: {
-      ...response.headers,
-      'content-length': [String(statSync(filename).size)],
-      etag: [hash],
-      ...(mimeType ? { 'content-type': [mimeType] } : {}),
-    },
-  };
-};
-
 export const createStaticFileHandler = (
   responseFactory: ResponseFactory,
   streamFromFileFactory: StreamFromFileFactory,
@@ -74,6 +51,23 @@ export const createStaticFileHandler = (
   mimeTypes: MimeTypes = require('./mimetypes').default,
 ): Handler => {
   assertHashAlgorithm(hashAlgorithm);
+
+  const createResponse = (code: number, filename: string, hash: string): Response => {
+    const extension = extname(filename).slice(1);
+    const mimeType = mimeTypes.get(extension);
+
+    const response = responseFactory(code);
+
+    return {
+      ...response,
+      headers: {
+        ...response.headers,
+        'content-length': [String(statSync(filename).size)],
+        etag: [hash],
+        ...(mimeType ? { 'content-type': [mimeType] } : {}),
+      },
+    };
+  };
 
   return async (request: ServerRequest): Promise<Response> => {
     const filepath = publicDirectory + request.uri.path;
@@ -85,14 +79,14 @@ export const createStaticFileHandler = (
     const hash = await checksum(filepath, hashAlgorithm);
 
     if (request.headers['if-none-match']?.includes(hash)) {
-      const response = createResponse(responseFactory, mimeTypes, 304, filepath, hash);
+      const response = createResponse(304, filepath, hash);
 
       response.body.end();
 
       return response;
     }
 
-    const response = createResponse(responseFactory, mimeTypes, 200, filepath, hash);
+    const response = createResponse(200, filepath, hash);
 
     return {
       ...response,
