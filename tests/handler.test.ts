@@ -1,11 +1,14 @@
-import { describe, expect, test } from '@jest/globals';
-import { Response, ServerRequest } from '@chubbyts/chubbyts-http-types/dist/message';
-import { createStaticFileHandler } from '../src/handler';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import { createReadStream, mkdirSync, rmSync, writeFileSync } from 'fs';
-import { Duplex, PassThrough, Stream } from 'stream';
+import type { Stream } from 'stream';
+import { Duplex, PassThrough } from 'stream';
+import type { Response, ServerRequest } from '@chubbyts/chubbyts-http-types/dist/message';
+import { describe, expect, test } from '@jest/globals';
 import { HttpError } from '@chubbyts/chubbyts-http-error/dist/http-error';
+import { useFunctionMock } from '@chubbyts/chubbyts-function-mock/dist/function-mock';
+import type { ResponseFactory, StreamFromFileFactory } from '@chubbyts/chubbyts-http-types/dist/message-factory';
+import { createStaticFileHandler } from '../src/handler';
 
 const jpegHex = `
 ffd8ffe000104a46494600010101012c012c0000fffe0013437265617465
@@ -53,6 +56,7 @@ ffc40014100100000000000000000000000000000000ffda000801010001
 
 const readStream = async (stream: Stream) => {
   return new Promise((resolve, reject) => {
+    // eslint-disable-next-line functional/no-let
     let data = '';
 
     stream.on('data', (chunk) => (data += chunk));
@@ -63,9 +67,8 @@ const readStream = async (stream: Stream) => {
 
 describe('handler', () => {
   test('with not supported algorithm', async () => {
-    const responseFactory = jest.fn();
-    const streamFromFileFactory = jest.fn();
-    const publicDirectory = `${tmpdir()}/${randomBytes(16).toString('hex')}`;
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([]);
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
     try {
       createStaticFileHandler(responseFactory, streamFromFileFactory, '/unknown', 'some-algo');
@@ -75,15 +78,16 @@ describe('handler', () => {
       expect((e as Error).message).toMatch(/Not supported hash algorithm: "some-algo", supported are: "([^"]+)", ".*"/);
     }
 
-    expect(responseFactory).toHaveBeenCalledTimes(0);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with missing file', async () => {
     const request = { uri: { path: '/test.jpg' } } as ServerRequest;
 
-    const responseFactory = jest.fn();
-    const streamFromFileFactory = jest.fn();
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([]);
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
+
     const publicDirectory = `${tmpdir()}/${randomBytes(16).toString('hex')}`;
 
     mkdirSync(publicDirectory, { recursive: true });
@@ -95,13 +99,13 @@ describe('handler', () => {
       throw new Error('Missing error');
     } catch (e) {
       expect(e).toBeInstanceOf(HttpError);
-      expect(e).toMatchInlineSnapshot(`[Error: Not Found]`);
+      expect(e).toMatchInlineSnapshot('[Error: Not Found]');
     }
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(responseFactory).toHaveBeenCalledTimes(0);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with directory', async () => {
@@ -114,8 +118,8 @@ describe('handler', () => {
 
     const request = { uri: { path } } as ServerRequest;
 
-    const responseFactory = jest.fn();
-    const streamFromFileFactory = jest.fn();
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([]);
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
     const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
 
@@ -124,13 +128,13 @@ describe('handler', () => {
       throw new Error('Missing error');
     } catch (e) {
       expect(e).toBeInstanceOf(HttpError);
-      expect(e).toMatchInlineSnapshot(`[Error: Not Found]`);
+      expect(e).toMatchInlineSnapshot('[Error: Not Found]');
     }
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(responseFactory).toHaveBeenCalledTimes(0);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with image', async () => {
@@ -147,17 +151,19 @@ describe('handler', () => {
     const request = { headers: {}, uri: { path } } as ServerRequest;
     const response = { headers: {} } as Response;
 
-    const responseFactory = jest.fn((givenStatus) => {
-      expect(givenStatus).toBe(200);
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([
+      { parameters: [200], return: response },
+    ]);
 
-      return response;
-    });
-
-    const streamFromFileFactory = jest.fn((filepath) => {
-      const newStream = new PassThrough();
-      createReadStream(filepath).pipe(newStream);
-      return newStream;
-    });
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([
+      {
+        callback: (filepath) => {
+          const newStream = new PassThrough();
+          createReadStream(filepath).pipe(newStream);
+          return newStream;
+        },
+      },
+    ]);
 
     const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
 
@@ -177,8 +183,8 @@ describe('handler', () => {
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(responseFactory).toHaveBeenCalledTimes(1);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(1);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with image and matching etag', async () => {
@@ -201,13 +207,11 @@ describe('handler', () => {
 
     const response = { headers: {}, body: { end } } as unknown as Response;
 
-    const responseFactory = jest.fn((givenStatus) => {
-      expect(givenStatus).toBe(304);
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([
+      { parameters: [304], return: response },
+    ]);
 
-      return response;
-    });
-
-    const streamFromFileFactory = jest.fn();
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
     const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
 
@@ -225,8 +229,9 @@ describe('handler', () => {
     rmSync(publicDirectory, { recursive: true });
 
     expect(end).toHaveBeenCalledTimes(1);
-    expect(responseFactory).toHaveBeenCalledTimes(1);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
+
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with unknown file', async () => {
@@ -241,17 +246,19 @@ describe('handler', () => {
     const request = { headers: {}, uri: { path } } as ServerRequest;
     const response = { headers: {} } as Response;
 
-    const responseFactory = jest.fn((givenStatus) => {
-      expect(givenStatus).toBe(200);
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([
+      { parameters: [200], return: response },
+    ]);
 
-      return response;
-    });
-
-    const streamFromFileFactory = jest.fn((filepath) => {
-      const newStream = new PassThrough();
-      createReadStream(filepath).pipe(newStream);
-      return newStream;
-    });
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([
+      {
+        callback: (filepath) => {
+          const newStream = new PassThrough();
+          createReadStream(filepath).pipe(newStream);
+          return newStream;
+        },
+      },
+    ]);
 
     const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
 
@@ -270,7 +277,7 @@ describe('handler', () => {
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(responseFactory).toHaveBeenCalledTimes(1);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(1);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 });

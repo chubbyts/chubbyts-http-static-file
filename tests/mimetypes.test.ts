@@ -1,5 +1,5 @@
-import { describe, expect, test } from '@jest/globals';
 import { createHash } from 'crypto';
+import { describe, expect, test } from '@jest/globals';
 import mimetypes from '../src/mimetypes';
 
 describe('mimetypes', () => {

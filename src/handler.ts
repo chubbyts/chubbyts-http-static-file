@@ -1,10 +1,10 @@
-import { Handler } from '@chubbyts/chubbyts-http-types/dist/handler';
-import { Response, ServerRequest } from '@chubbyts/chubbyts-http-types/dist/message';
-import { ResponseFactory, StreamFromFileFactory } from '@chubbyts/chubbyts-http-types/dist/message-factory';
-import { createNotFound } from '@chubbyts/chubbyts-http-error/dist/http-error';
 import { createHash, getHashes } from 'crypto';
 import { accessSync, constants, createReadStream, statSync } from 'fs';
 import { extname } from 'path';
+import type { Handler } from '@chubbyts/chubbyts-http-types/dist/handler';
+import type { Response, ServerRequest } from '@chubbyts/chubbyts-http-types/dist/message';
+import type { ResponseFactory, StreamFromFileFactory } from '@chubbyts/chubbyts-http-types/dist/message-factory';
+import { createNotFound } from '@chubbyts/chubbyts-http-error/dist/http-error';
 
 export type MimeTypes = Map<string, string>;
 
@@ -47,7 +47,8 @@ export const createStaticFileHandler = (
   responseFactory: ResponseFactory,
   streamFromFileFactory: StreamFromFileFactory,
   publicDirectory: string,
-  hashAlgorithm: string = 'md5',
+  hashAlgorithm = 'md5',
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   mimeTypes: MimeTypes = require('./mimetypes').default,
 ): Handler => {
   assertHashAlgorithm(hashAlgorithm);

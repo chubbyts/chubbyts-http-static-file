@@ -1,10 +1,14 @@
-import { describe, expect, test } from '@jest/globals';
-import { Response, ServerRequest } from '@chubbyts/chubbyts-http-types/dist/message';
-import { createStaticFileMiddleware } from '../src/middleware';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
 import { createReadStream, mkdirSync, rmSync, writeFileSync } from 'fs';
-import { Duplex, PassThrough, Stream } from 'stream';
+import type { Stream } from 'stream';
+import { Duplex, PassThrough } from 'stream';
+import type { Response, ServerRequest } from '@chubbyts/chubbyts-http-types/dist/message';
+import { describe, expect, test } from '@jest/globals';
+import { useFunctionMock } from '@chubbyts/chubbyts-function-mock/dist/function-mock';
+import type { ResponseFactory, StreamFromFileFactory } from '@chubbyts/chubbyts-http-types/dist/message-factory';
+import type { Handler } from '@chubbyts/chubbyts-http-types/dist/handler';
+import { createStaticFileMiddleware } from '../src/middleware';
 
 const jpegHex = `
 ffd8ffe000104a46494600010101012c012c0000fffe0013437265617465
@@ -52,6 +56,7 @@ ffc40014100100000000000000000000000000000000ffda000801010001
 
 const readStream = async (stream: Stream) => {
   return new Promise((resolve, reject) => {
+    // eslint-disable-next-line functional/no-let
     let data = '';
 
     stream.on('data', (chunk) => (data += chunk));
@@ -62,9 +67,8 @@ const readStream = async (stream: Stream) => {
 
 describe('middleware', () => {
   test('with not supported algorithm', async () => {
-    const responseFactory = jest.fn();
-    const streamFromFileFactory = jest.fn();
-    const publicDirectory = `${tmpdir()}/${randomBytes(16).toString('hex')}`;
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([]);
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
     try {
       createStaticFileMiddleware(responseFactory, streamFromFileFactory, '/unknown', 'some-algo');
@@ -74,22 +78,21 @@ describe('middleware', () => {
       expect((e as Error).message).toMatch(/Not supported hash algorithm: "some-algo", supported are: "([^"]+)", ".*"/);
     }
 
-    expect(responseFactory).toHaveBeenCalledTimes(0);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with missing file', async () => {
     const request = { uri: { path: '/test.jpg' } } as ServerRequest;
     const response = {} as Response;
 
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
+    const [handler, handlerMocks] = useFunctionMock<Handler>([
+      { parameters: [request], return: Promise.resolve(response) },
+    ]);
 
-      return response;
-    });
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([]);
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
-    const responseFactory = jest.fn();
-    const streamFromFileFactory = jest.fn();
     const publicDirectory = `${tmpdir()}/${randomBytes(16).toString('hex')}`;
 
     mkdirSync(publicDirectory, { recursive: true });
@@ -100,9 +103,9 @@ describe('middleware', () => {
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(handler).toHaveBeenCalledTimes(1);
-    expect(responseFactory).toHaveBeenCalledTimes(0);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
+    expect(handlerMocks.length).toBe(0);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with directory', async () => {
@@ -116,14 +119,12 @@ describe('middleware', () => {
     const request = { uri: { path } } as ServerRequest;
     const response = {} as Response;
 
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
+    const [handler, handlerMocks] = useFunctionMock<Handler>([
+      { parameters: [request], return: Promise.resolve(response) },
+    ]);
 
-      return response;
-    });
-
-    const responseFactory = jest.fn();
-    const streamFromFileFactory = jest.fn();
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([]);
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
     const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
 
@@ -131,12 +132,12 @@ describe('middleware', () => {
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(handler).toHaveBeenCalledTimes(1);
-    expect(responseFactory).toHaveBeenCalledTimes(0);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
+    expect(handlerMocks.length).toBe(0);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
-  test('with image and error on response factory', async () => {
+  test('with error in decorated handler code', async () => {
     const publicDirectory = `${tmpdir()}/${randomBytes(16).toString('hex')}`;
     const path = '/test.jpg';
     const filepath = publicDirectory + path;
@@ -148,23 +149,14 @@ describe('middleware', () => {
     writeFileSync(filepath, data);
 
     const request = { headers: {}, uri: { path } } as ServerRequest;
-    const response = { headers: {} } as Response;
 
     const error = new Error('something went wrong');
 
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
+    const [handler, handlerMocks] = useFunctionMock<Handler>([]);
 
-      return response;
-    });
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([{ parameters: [200], error }]);
 
-    const responseFactory = jest.fn((givenStatus) => {
-      expect(givenStatus).toBe(200);
-
-      throw error;
-    });
-
-    const streamFromFileFactory = jest.fn();
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
     const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
 
@@ -177,9 +169,9 @@ describe('middleware', () => {
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(handler).toHaveBeenCalledTimes(0);
-    expect(responseFactory).toHaveBeenCalledTimes(1);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
+    expect(handlerMocks.length).toBe(0);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with image', async () => {
@@ -196,23 +188,21 @@ describe('middleware', () => {
     const request = { headers: {}, uri: { path } } as ServerRequest;
     const response = { headers: {} } as Response;
 
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
+    const [handler, handlerMocks] = useFunctionMock<Handler>([]);
 
-      return response;
-    });
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([
+      { parameters: [200], return: response },
+    ]);
 
-    const responseFactory = jest.fn((givenStatus) => {
-      expect(givenStatus).toBe(200);
-
-      return response;
-    });
-
-    const streamFromFileFactory = jest.fn((filepath) => {
-      const newStream = new PassThrough();
-      createReadStream(filepath).pipe(newStream);
-      return newStream;
-    });
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([
+      {
+        callback: (filepath) => {
+          const newStream = new PassThrough();
+          createReadStream(filepath).pipe(newStream);
+          return newStream;
+        },
+      },
+    ]);
 
     const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
 
@@ -232,9 +222,9 @@ describe('middleware', () => {
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(handler).toHaveBeenCalledTimes(0);
-    expect(responseFactory).toHaveBeenCalledTimes(1);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(1);
+    expect(handlerMocks.length).toBe(0);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with image and matching etag', async () => {
@@ -257,19 +247,13 @@ describe('middleware', () => {
 
     const response = { headers: {}, body: { end } } as unknown as Response;
 
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
+    const [handler, handlerMocks] = useFunctionMock<Handler>([]);
 
-      return response;
-    });
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([
+      { parameters: [304], return: response },
+    ]);
 
-    const responseFactory = jest.fn((givenStatus) => {
-      expect(givenStatus).toBe(304);
-
-      return response;
-    });
-
-    const streamFromFileFactory = jest.fn();
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
     const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
 
@@ -287,9 +271,10 @@ describe('middleware', () => {
     rmSync(publicDirectory, { recursive: true });
 
     expect(end).toHaveBeenCalledTimes(1);
-    expect(handler).toHaveBeenCalledTimes(0);
-    expect(responseFactory).toHaveBeenCalledTimes(1);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(0);
+
+    expect(handlerMocks.length).toBe(0);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with unknown file', async () => {
@@ -304,23 +289,21 @@ describe('middleware', () => {
     const request = { headers: {}, uri: { path } } as ServerRequest;
     const response = { headers: {} } as Response;
 
-    const handler = jest.fn(async (givenRequest: ServerRequest): Promise<Response> => {
-      expect(givenRequest).toBe(request);
+    const [handler, handlerMocks] = useFunctionMock<Handler>([]);
 
-      return response;
-    });
+    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([
+      { parameters: [200], return: response },
+    ]);
 
-    const responseFactory = jest.fn((givenStatus) => {
-      expect(givenStatus).toBe(200);
-
-      return response;
-    });
-
-    const streamFromFileFactory = jest.fn((filepath) => {
-      const newStream = new PassThrough();
-      createReadStream(filepath).pipe(newStream);
-      return newStream;
-    });
+    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([
+      {
+        callback: (filepath) => {
+          const newStream = new PassThrough();
+          createReadStream(filepath).pipe(newStream);
+          return newStream;
+        },
+      },
+    ]);
 
     const middleware = createStaticFileMiddleware(responseFactory, streamFromFileFactory, publicDirectory);
 
@@ -339,8 +322,8 @@ describe('middleware', () => {
 
     rmSync(publicDirectory, { recursive: true });
 
-    expect(handler).toHaveBeenCalledTimes(0);
-    expect(responseFactory).toHaveBeenCalledTimes(1);
-    expect(streamFromFileFactory).toHaveBeenCalledTimes(1);
+    expect(handlerMocks.length).toBe(0);
+    expect(responseFactoryMocks.length).toBe(0);
+    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 });

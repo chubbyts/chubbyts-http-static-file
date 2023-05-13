@@ -23,16 +23,16 @@ A minimal static file handler for chubbyts-http-types.
 
 ## Requirements
 
- * node: 14
- * [@chubbyts/chubbyts-http-error][2]: ^2.0.2
- * [@chubbyts/chubbyts-http-types][3]: ^1.0.1
+ * node: 16
+ * [@chubbyts/chubbyts-http-error][2]: ^2.2.0
+ * [@chubbyts/chubbyts-http-types][3]: ^1.1.0
 
 ## Installation
 
 Through [NPM](https://www.npmjs.com) as [@chubbyts/chubbyts-static-file][1].
 
 ```ts
-npm i @chubbyts/chubbyts-static-file@^1.1.1
+npm i @chubbyts/chubbyts-static-file@^1.2.0
 ```
 
 ## Usage
