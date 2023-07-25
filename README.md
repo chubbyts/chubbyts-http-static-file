@@ -24,15 +24,15 @@ A minimal static file handler for chubbyts-http-types.
 ## Requirements
 
  * node: 16
- * [@chubbyts/chubbyts-http-error][2]: ^2.2.1
- * [@chubbyts/chubbyts-http-types][3]: ^1.1.1
+ * [@chubbyts/chubbyts-http-error][2]: ^2.3.0
+ * [@chubbyts/chubbyts-http-types][3]: ^1.2.2
 
 ## Installation
 
 Through [NPM](https://www.npmjs.com) as [@chubbyts/chubbyts-static-file][1].
 
 ```ts
-npm i @chubbyts/chubbyts-static-file@^1.2.1
+npm i @chubbyts/chubbyts-static-file@^2.0.0
 ```
 
 ## Usage
@@ -45,7 +45,13 @@ import { createGetRoute } from '@chubbyts/chubbyts-framework/dist/router/route';
 const responseFactory: ResponseFactory = ...;
 const streamFromFileFactory: StreamFromFileFactory = ...;
 
-const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, '/path/to/public/directory');
+const handler = createStaticFileHandler(
+  responseFactory,
+  streamFromFileFactory,
+  '/path/to/public/directory',
+  (await import('../src/mimetypes')).default, // typescript / ecmascript module
+  // require('../src/mimetypes').default, // commonjs (cjs)
+);
 
 // for example as a fallback route matching everything
 const route = createGetRoute({

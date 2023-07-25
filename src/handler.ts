@@ -47,9 +47,8 @@ export const createStaticFileHandler = (
   responseFactory: ResponseFactory,
   streamFromFileFactory: StreamFromFileFactory,
   publicDirectory: string,
+  mimeTypes: MimeTypes,
   hashAlgorithm = 'md5',
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  mimeTypes: MimeTypes = require('./mimetypes').default,
 ): Handler => {
   assertHashAlgorithm(hashAlgorithm);
 

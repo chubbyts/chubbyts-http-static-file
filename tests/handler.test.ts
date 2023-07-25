@@ -71,7 +71,7 @@ describe('handler', () => {
     const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
     try {
-      createStaticFileHandler(responseFactory, streamFromFileFactory, '/unknown', 'some-algo');
+      createStaticFileHandler(responseFactory, streamFromFileFactory, '/unknown', new Map(), 'some-algo');
       throw new Error('Missing error');
     } catch (e) {
       expect(e).toBeInstanceOf(Error);
@@ -92,7 +92,7 @@ describe('handler', () => {
 
     mkdirSync(publicDirectory, { recursive: true });
 
-    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
+    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory, new Map());
 
     try {
       await handler(request);
@@ -121,7 +121,7 @@ describe('handler', () => {
     const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([]);
     const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
-    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
+    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory, new Map());
 
     try {
       await handler(request);
@@ -165,7 +165,12 @@ describe('handler', () => {
       },
     ]);
 
-    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
+    const handler = createStaticFileHandler(
+      responseFactory,
+      streamFromFileFactory,
+      publicDirectory,
+      (await import('../src/mimetypes')).default,
+    );
 
     const handlerResponse = await handler(request);
 
@@ -213,7 +218,12 @@ describe('handler', () => {
 
     const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
 
-    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
+    const handler = createStaticFileHandler(
+      responseFactory,
+      streamFromFileFactory,
+      publicDirectory,
+      (await import('../src/mimetypes')).default,
+    );
 
     const handlerResponse = await handler(request);
 
@@ -260,7 +270,12 @@ describe('handler', () => {
       },
     ]);
 
-    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory);
+    const handler = createStaticFileHandler(
+      responseFactory,
+      streamFromFileFactory,
+      publicDirectory,
+      (await import('../src/mimetypes')).default,
+    );
 
     const handlerResponse = await handler(request);
 
