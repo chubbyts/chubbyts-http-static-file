@@ -1,7 +1,7 @@
 {
   "name": "@chubbyts/chubbyts-static-file",
   "type": "module",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A minimal static file handler for chubbyts-http-types.",
   "keywords": [
     "chubbyts",
@@ -12,7 +12,7 @@
   "license": "MIT",
   "repository": "chubbyts/chubbyts-static-file",
   "scripts": {
-    "build": "rm -rf ./dist && tsc -b ./tsconfig.types.json ./tsconfig.esm.json ./tsconfig.cjs.json && node ./rename-commonjs.js",
+    "build": "node ./build.js",
     "cs-fix": "prettier --write src tests",
     "cs": "prettier --check src tests",
     "infection": "stryker run",
@@ -46,21 +46,21 @@
     "./*": {
       "types": "./*.d.ts",
       "require": "./*.cjs",
-      "import": "./*.js",
-      "default": "./*.js"
+      "import": "./*.mjs",
+      "default": "./*.mjs"
     }
   },
   "engines": {
     "node": ">=16"
   },
   "dependencies": {
-    "@chubbyts/chubbyts-http-error": "^2.3.0",
-    "@chubbyts/chubbyts-http-types": "^1.2.2"
+    "@chubbyts/chubbyts-http-error": "^2.3.1",
+    "@chubbyts/chubbyts-http-types": "^1.2.3"
   },
   "devDependencies": {
-    "@chubbyts/chubbyts-eslint": "^2.0.2",
-    "@chubbyts/chubbyts-function-mock": "^1.4.0",
-    "@chubbyts/chubbyts-packaging": "^1.0.3",
+    "@chubbyts/chubbyts-eslint": "^2.0.3",
+    "@chubbyts/chubbyts-function-mock": "^1.4.1",
+    "@chubbyts/chubbyts-packaging": "^2.0.4",
     "@stryker-mutator/core": "^7.1.1",
     "@stryker-mutator/jest-runner": "^7.1.1",
     "@types/jest": "^29.5.3",
