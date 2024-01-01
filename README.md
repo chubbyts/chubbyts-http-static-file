@@ -63,7 +63,7 @@ const route = createGetRoute({
 
 ## Copyright
 
-2023 Dominik Zogg
+2024 Dominik Zogg
 
 [1]: https://www.npmjs.com/package/@chubbyts/chubbyts-static-file
 [2]: https://www.npmjs.com/package/@chubbyts/chubbyts-http-error
