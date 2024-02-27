@@ -1,5 +1,5 @@
 {
-  "name": "@chubbyts/chubbyts-static-file",
+  "name": "@chubbyts/chubbyts-http-static-file",
   "type": "module",
   "version": "2.0.1",
   "description": "A minimal static file handler for chubbyts-http-types.",
@@ -10,7 +10,7 @@
   ],
   "author": "Dominik Zogg",
   "license": "MIT",
-  "repository": "chubbyts/chubbyts-static-file",
+  "repository": "chubbyts/chubbyts-http-static-file",
   "scripts": {
     "build": "node ./build.js",
     "cs-fix": "prettier --write src tests",
