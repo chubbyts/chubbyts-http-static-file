@@ -4,7 +4,7 @@ import { createReadStream, mkdirSync, rmSync, writeFileSync } from 'fs';
 import type { Stream } from 'stream';
 import { Duplex, PassThrough } from 'stream';
 import type { Response, ServerRequest } from '@chubbyts/chubbyts-http-types/dist/message';
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, test, vi } from 'vitest';
 import { HttpError } from '@chubbyts/chubbyts-http-error/dist/http-error';
 import { useFunctionMock } from '@chubbyts/chubbyts-function-mock/dist/function-mock';
 import type { ResponseFactory, StreamFromFileFactory } from '@chubbyts/chubbyts-http-types/dist/message-factory';
@@ -208,7 +208,7 @@ describe('handler', () => {
       uri: { path },
     } as unknown as ServerRequest;
 
-    const end = jest.fn();
+    const end = vi.fn();
 
     const response = { headers: {}, body: { end } } as unknown as Response;
 
