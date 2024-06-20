@@ -46,7 +46,7 @@
     "@chubbyts/chubbyts-http-types": "^1.2.3"
   },
   "devDependencies": {
-    "@chubbyts/chubbyts-eslint": "^2.0.3",
+    "@chubbyts/chubbyts-eslint": "^2.0.7",
     "@chubbyts/chubbyts-function-mock": "^1.4.2",
     "@chubbyts/chubbyts-packaging": "^2.0.7",
     "@stryker-mutator/core": "^8.2.6",
