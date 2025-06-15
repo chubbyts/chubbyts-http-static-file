@@ -24,15 +24,15 @@ A minimal static file handler for chubbyts-http-types.
 ## Requirements
 
  * node: 18
- * [@chubbyts/chubbyts-http-error][2]: ^2.4.1
- * [@chubbyts/chubbyts-http-types][3]: ^1.3.1 || ^2.0.0
+ * [@chubbyts/chubbyts-http-error][2]: ^3.0.0
+ * [@chubbyts/chubbyts-http-types][3]: ^3.0.0
 
 ## Installation
 
 Through [NPM](https://www.npmjs.com) as [@chubbyts/chubbyts-http-static-file][1].
 
 ```ts
-npm i @chubbyts/chubbyts-http-static-file@^2.2.0
+npm i @chubbyts/chubbyts-http-static-file@^3.0.0
 ```
 
 ## Usage
