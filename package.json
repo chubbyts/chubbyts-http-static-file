@@ -1,7 +1,7 @@
 {
   "name": "@chubbyts/chubbyts-http-static-file",
   "type": "module",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "A minimal static file handler for chubbyts-http-types.",
   "keywords": [
     "chubbyts",
@@ -41,12 +41,12 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@chubbyts/chubbyts-http-error": "^2.4.2",
-    "@chubbyts/chubbyts-http-types": "^3.0.0"
+    "@chubbyts/chubbyts-http-error": "^3.0.1",
+    "@chubbyts/chubbyts-http-types": "^3.0.1"
   },
   "devDependencies": {
-    "@chubbyts/chubbyts-eslint": "^4.0.2",
-    "@chubbyts/chubbyts-function-mock": "^2.0.1",
+    "@chubbyts/chubbyts-eslint": "^4.0.3",
+    "@chubbyts/chubbyts-function-mock": "^2.0.2",
     "@stryker-mutator/core": "^9.0.1",
     "@stryker-mutator/vitest-runner": "^9.0.1",
     "@types/node": "^24.0.1",
