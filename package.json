@@ -1,7 +1,7 @@
 {
   "name": "@chubbyts/chubbyts-http-static-file",
   "type": "module",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "A minimal static file handler for chubbyts-http-types.",
   "keywords": [
     "chubbyts",

@@ -32,7 +32,7 @@ A minimal static file handler for chubbyts-http-types.
 Through [NPM](https://www.npmjs.com) as [@chubbyts/chubbyts-http-static-file][1].
 
 ```ts
-npm i @chubbyts/chubbyts-http-static-file@^3.0.2
+npm i @chubbyts/chubbyts-http-static-file@^3.0.3
 ```
 
 ## Usage
@@ -55,7 +55,7 @@ const handler = createStaticFileHandler(
 
 // for example as a fallback route matching everything
 const route = createGetRoute({
-  path: '/(.*)',
+  path: '/*path',
   name: 'static_file',
   handler,
 });
