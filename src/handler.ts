@@ -1,10 +1,10 @@
-import { createHash, getHashes } from 'crypto';
-import { accessSync, constants, createReadStream, statSync } from 'fs';
-import { extname } from 'path';
-import type { Handler } from '@chubbyts/chubbyts-http-types/dist/handler';
-import type { Response, ServerRequest } from '@chubbyts/chubbyts-http-types/dist/message';
-import type { ResponseFactory, StreamFromFileFactory } from '@chubbyts/chubbyts-http-types/dist/message-factory';
+import { createHash, getHashes } from 'node:crypto';
+import { accessSync, constants, createReadStream, statSync } from 'node:fs';
+import { extname } from 'node:path';
+import { STATUS_CODES } from 'node:http';
 import { createNotFound } from '@chubbyts/chubbyts-http-error/dist/http-error';
+import type { BodyInit, Handler, ServerRequest } from '@chubbyts/chubbyts-undici-server/dist/server';
+import { Response } from '@chubbyts/chubbyts-undici-server/dist/server';
 
 export type MimeTypes = Map<string, string>;
 
@@ -44,53 +44,48 @@ const checksum = async (filepath: string, hashAlgorithm: string): Promise<string
 };
 
 export const createStaticFileHandler = (
-  responseFactory: ResponseFactory,
-  streamFromFileFactory: StreamFromFileFactory,
   publicDirectory: string,
   mimeTypes: MimeTypes,
   hashAlgorithm = 'md5',
 ): Handler => {
   assertHashAlgorithm(hashAlgorithm);
 
-  const createResponse = (code: number, filename: string, hash: string): Response => {
+  const createResponse = (body: BodyInit, code: number, filename: string, hash: string): Response => {
     const extension = extname(filename).slice(1);
     const mimeType = mimeTypes.get(extension);
 
-    const response = responseFactory(code);
-
-    return {
-      ...response,
+    return new Response(body, {
+      status: code,
+      statusText: STATUS_CODES[code],
       headers: {
-        ...response.headers,
-        'content-length': [String(statSync(filename).size)],
-        etag: [hash],
-        ...(mimeType ? { 'content-type': [mimeType] } : {}),
+        'content-length': String(statSync(filename).size),
+        etag: hash,
+        ...(mimeType ? { 'content-type': mimeType } : {}),
       },
-    };
+    });
   };
 
-  return async (request: ServerRequest): Promise<Response> => {
-    const filepath = publicDirectory + request.uri.path;
+  return async (serverRequest: ServerRequest): Promise<Response> => {
+    const url = new URL(serverRequest.url);
+
+    const filepath = publicDirectory + url.pathname;
 
     if (!access(filepath) || statSync(filepath).isDirectory()) {
-      throw createNotFound({ detail: `There is no file at path "${request.uri.path}"` });
+      throw createNotFound({ detail: `There is no file at path "${url.pathname}"` });
     }
 
     const hash = await checksum(filepath, hashAlgorithm);
 
-    if (request.headers['if-none-match']?.includes(hash)) {
-      const response = createResponse(304, filepath, hash);
-
-      response.body.end();
-
-      return response;
+    if (
+      serverRequest.headers
+        .get('if-none-match')
+        ?.split(',')
+        ?.map((headerPart) => headerPart.trim())
+        ?.includes(hash)
+    ) {
+      return createResponse(null, 304, filepath, hash);
     }
 
-    const response = createResponse(200, filepath, hash);
-
-    return {
-      ...response,
-      body: streamFromFileFactory(filepath),
-    };
+    return createResponse(createReadStream(filepath), 200, filepath, hash);
   };
 };
