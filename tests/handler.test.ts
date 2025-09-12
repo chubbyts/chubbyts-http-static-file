@@ -1,13 +1,9 @@
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
-import { createReadStream, mkdirSync, rmSync, writeFileSync } from 'fs';
-import type { Stream } from 'stream';
-import { Duplex, PassThrough } from 'stream';
-import type { Response, ServerRequest } from '@chubbyts/chubbyts-http-types/dist/message';
-import { describe, expect, test, vi } from 'vitest';
+import { mkdirSync, rmSync, writeFileSync } from 'fs';
+import { describe, expect, test } from 'vitest';
 import { HttpError } from '@chubbyts/chubbyts-http-error/dist/http-error';
-import { useFunctionMock } from '@chubbyts/chubbyts-function-mock/dist/function-mock';
-import type { ResponseFactory, StreamFromFileFactory } from '@chubbyts/chubbyts-http-types/dist/message-factory';
+import { ServerRequest } from '@chubbyts/chubbyts-undici-server/dist/server';
 import { createStaticFileHandler } from '../src/handler';
 
 const jpegHex = `
@@ -54,48 +50,28 @@ ffc40014100100000000000000000000000000000000ffda000801010001
 00000000000000000000000000000000ffda0008010100013f107fffd9
 `.replace(/\s+/g, '');
 
-const readStream = async (stream: Stream) => {
-  return new Promise((resolve, reject) => {
-    // eslint-disable-next-line functional/no-let
-    let data = '';
-
-    stream.on('data', (chunk) => (data += chunk));
-    stream.on('end', () => resolve(data));
-    stream.on('error', reject);
-  });
-};
-
 describe('handler', () => {
   test('with not supported algorithm', async () => {
-    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([]);
-    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
-
     try {
-      createStaticFileHandler(responseFactory, streamFromFileFactory, '/unknown', new Map(), 'some-algo');
+      createStaticFileHandler('/unknown', new Map(), 'some-algo');
       throw new Error('Missing error');
     } catch (e) {
       expect(e).toBeInstanceOf(Error);
       expect((e as Error).message).toMatch(/Not supported hash algorithm: "some-algo", supported are: "([^"]+)", ".*"/);
     }
-
-    expect(responseFactoryMocks.length).toBe(0);
-    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with missing file', async () => {
-    const request = { uri: { path: '/test.jpg' } } as ServerRequest;
-
-    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([]);
-    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
+    const serverRequest = new ServerRequest('https://example.com/test.jpg');
 
     const publicDirectory = `${tmpdir()}/${randomBytes(16).toString('hex')}`;
 
     mkdirSync(publicDirectory, { recursive: true });
 
-    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory, new Map());
+    const handler = createStaticFileHandler(publicDirectory, new Map());
 
     try {
-      await handler(request);
+      await handler(serverRequest);
       throw new Error('Missing error');
     } catch (e) {
       expect(e).toBeInstanceOf(HttpError);
@@ -103,9 +79,6 @@ describe('handler', () => {
     }
 
     rmSync(publicDirectory, { recursive: true });
-
-    expect(responseFactoryMocks.length).toBe(0);
-    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with directory', async () => {
@@ -116,15 +89,12 @@ describe('handler', () => {
     mkdirSync(publicDirectory, { recursive: true });
     mkdirSync(filepath);
 
-    const request = { uri: { path } } as ServerRequest;
+    const serverRequest = new ServerRequest(`https://example.com${path}`);
 
-    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([]);
-    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
-
-    const handler = createStaticFileHandler(responseFactory, streamFromFileFactory, publicDirectory, new Map());
+    const handler = createStaticFileHandler(publicDirectory, new Map());
 
     try {
-      await handler(request);
+      await handler(serverRequest);
       throw new Error('Missing error');
     } catch (e) {
       expect(e).toBeInstanceOf(HttpError);
@@ -132,9 +102,6 @@ describe('handler', () => {
     }
 
     rmSync(publicDirectory, { recursive: true });
-
-    expect(responseFactoryMocks.length).toBe(0);
-    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with image', async () => {
@@ -148,48 +115,26 @@ describe('handler', () => {
 
     writeFileSync(filepath, data);
 
-    const request = { headers: {}, uri: { path } } as ServerRequest;
-    const response = { headers: {} } as Response;
+    const serverRequest = new ServerRequest(`https://example.com${path}`);
 
-    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([
-      { parameters: [200], return: response },
-    ]);
+    const handler = createStaticFileHandler(publicDirectory, (await import('../src/mimetypes')).default);
 
-    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([
+    const response = await handler(serverRequest);
+
+    expect(response.status).toBe(200);
+    expect(response.statusText).toBe('OK');
+    expect(Object.fromEntries([...response.headers.entries()])).toMatchInlineSnapshot(`
       {
-        callback: (filepath) => {
-          const newStream = new PassThrough();
-          createReadStream(filepath).pipe(newStream);
-          return newStream;
-        },
-      },
-    ]);
+        "content-length": "1229",
+        "content-type": "image/jpeg",
+        "etag": "0f1653b9b75fff62db7c49628e23a304",
+      }
+    `);
+    expect(response.body).not.toBeNull();
 
-    const handler = createStaticFileHandler(
-      responseFactory,
-      streamFromFileFactory,
-      publicDirectory,
-      (await import('../src/mimetypes')).default,
-    );
-
-    const handlerResponse = await handler(request);
-
-    expect(handlerResponse).toEqual({
-      ...response,
-      body: expect.any(Duplex),
-      headers: {
-        'content-length': ['1229'],
-        'content-type': ['image/jpeg'],
-        etag: ['0f1653b9b75fff62db7c49628e23a304'],
-      },
-    });
-
-    await readStream(handlerResponse.body);
+    expect(Buffer.from(await response.arrayBuffer()).toString('hex')).toBe(jpegHex);
 
     rmSync(publicDirectory, { recursive: true });
-
-    expect(responseFactoryMocks.length).toBe(0);
-    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with image and matching etag', async () => {
@@ -203,96 +148,53 @@ describe('handler', () => {
 
     writeFileSync(filepath, data);
 
-    const request = {
-      headers: { 'if-none-match': ['0f1653b9b75fff62db7c49628e23a304'] },
-      uri: { path },
-    } as unknown as ServerRequest;
-
-    const end = vi.fn();
-
-    const response = { headers: {}, body: { end } } as unknown as Response;
-
-    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([
-      { parameters: [304], return: response },
-    ]);
-
-    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([]);
-
-    const handler = createStaticFileHandler(
-      responseFactory,
-      streamFromFileFactory,
-      publicDirectory,
-      (await import('../src/mimetypes')).default,
-    );
-
-    const handlerResponse = await handler(request);
-
-    expect(handlerResponse).toEqual({
-      ...response,
-      headers: {
-        'content-length': ['1229'],
-        'content-type': ['image/jpeg'],
-        etag: ['0f1653b9b75fff62db7c49628e23a304'],
-      },
+    const serverRequest = new ServerRequest(`https://example.com${path}`, {
+      headers: { 'if-none-match': '0f1653b9b75fff62db7c49628e23a304' },
     });
 
+    const handler = createStaticFileHandler(publicDirectory, (await import('../src/mimetypes')).default);
+
+    const response = await handler(serverRequest);
+
+    expect(response.status).toBe(304);
+    expect(response.statusText).toBe('Not Modified');
+    expect(Object.fromEntries([...response.headers.entries()])).toMatchInlineSnapshot(`
+      {
+        "content-length": "1229",
+        "content-type": "image/jpeg",
+        "etag": "0f1653b9b75fff62db7c49628e23a304",
+      }
+    `);
+    expect(response.body).toBeNull();
+
     rmSync(publicDirectory, { recursive: true });
-
-    expect(end).toHaveBeenCalledTimes(1);
-
-    expect(responseFactoryMocks.length).toBe(0);
-    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 
   test('with unknown file', async () => {
     const publicDirectory = `${tmpdir()}/${randomBytes(16).toString('hex')}`;
-    const path = '/test.unknown';
-    const filepath = publicDirectory + path;
 
     mkdirSync(publicDirectory, { recursive: true });
 
-    writeFileSync(filepath, '-');
+    const serverRequest = new ServerRequest('https://example.com/test.unknown');
 
-    const request = { headers: {}, uri: { path } } as ServerRequest;
-    const response = { headers: {} } as Response;
+    const handler = createStaticFileHandler(publicDirectory, (await import('../src/mimetypes')).default);
 
-    const [responseFactory, responseFactoryMocks] = useFunctionMock<ResponseFactory>([
-      { parameters: [200], return: response },
-    ]);
-
-    const [streamFromFileFactory, streamFromFileFactoryMocks] = useFunctionMock<StreamFromFileFactory>([
-      {
-        callback: (filepath) => {
-          const newStream = new PassThrough();
-          createReadStream(filepath).pipe(newStream);
-          return newStream;
-        },
-      },
-    ]);
-
-    const handler = createStaticFileHandler(
-      responseFactory,
-      streamFromFileFactory,
-      publicDirectory,
-      (await import('../src/mimetypes')).default,
-    );
-
-    const handlerResponse = await handler(request);
-
-    expect(handlerResponse).toEqual({
-      ...response,
-      body: expect.any(Duplex),
-      headers: {
-        'content-length': ['1'],
-        etag: ['336d5ebc5436534e61d16e63ddfca327'],
-      },
-    });
-
-    await readStream(handlerResponse.body);
+    try {
+      await handler(serverRequest);
+      throw new Error('expect fail');
+    } catch (e) {
+      expect(e).toBeInstanceOf(HttpError);
+      expect({ ...e }).toMatchInlineSnapshot(`
+        {
+          "_httpError": "NotFound",
+          "detail": "There is no file at path "/test.unknown"",
+          "status": 404,
+          "title": "Not Found",
+          "type": "https://datatracker.ietf.org/doc/html/rfc2616#section-10.4.5",
+        }
+      `);
+    }
 
     rmSync(publicDirectory, { recursive: true });
-
-    expect(responseFactoryMocks.length).toBe(0);
-    expect(streamFromFileFactoryMocks.length).toBe(0);
   });
 });
