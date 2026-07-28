@@ -32,7 +32,7 @@ A minimal static file handler for chubbyts-undici-server.
 Through [NPM](https://www.npmjs.com) as [@chubbyts/chubbyts-undici-static-file][1].
 
 ```ts
-npm i @chubbyts/chubbyts-undici-static-file@^1.1.5
+npm i @chubbyts/chubbyts-undici-static-file@^1.2.0
 ```
 
 ## Usage

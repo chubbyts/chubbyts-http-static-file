@@ -1,7 +1,7 @@
 {
   "name": "@chubbyts/chubbyts-undici-static-file",
   "type": "module",
-  "version": "1.1.5",
+  "version": "1.2.0",
   "description": "A minimal static file handler for chubbyts-undici-server",
   "keywords": [
     "chubbyts",
