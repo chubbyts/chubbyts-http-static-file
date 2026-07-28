@@ -24,8 +24,8 @@ A minimal static file handler for chubbyts-undici-server.
 ## Requirements
 
  * node: 22
- * [@chubbyts/chubbyts-http-error][2]: ^3.3.0
- * [@chubbyts/chubbyts-undici-server][3]: ^1.1.3
+ * [@chubbyts/chubbyts-http-error][2]: ^3.4.0
+ * [@chubbyts/chubbyts-undici-server][3]: ^1.2.0
 
 ## Installation
 
