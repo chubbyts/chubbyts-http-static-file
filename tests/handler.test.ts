@@ -353,7 +353,7 @@ describe('handler', () => {
 
     expect(response.status).toBe(200);
     expect(response.statusText).toBe('OK');
-    expect(Object.fromEntries([...response.headers.entries()])).toEqual({
+    expect(Object.fromEntries(response.headers.entries())).toEqual({
       'content-length': '1229',
       'content-type': 'image/jpeg',
       etag: jpegEtag,
@@ -383,7 +383,7 @@ describe('handler', () => {
 
     expect(response.status).toBe(200);
     expect(response.statusText).toBe('OK');
-    expect(Object.fromEntries([...response.headers.entries()])).toEqual({
+    expect(Object.fromEntries(response.headers.entries())).toEqual({
       'content-length': '1229',
       'content-type': 'image/jpeg',
       etag: jpegEtag,
@@ -457,7 +457,7 @@ describe('handler', () => {
 
     expect(response.status).toBe(304);
     expect(response.statusText).toBe('Not Modified');
-    expect(Object.fromEntries([...response.headers.entries()])).toEqual({
+    expect(Object.fromEntries(response.headers.entries())).toEqual({
       'content-length': '1229',
       'content-type': 'image/jpeg',
       etag: jpegEtag,
@@ -539,7 +539,7 @@ describe('handler', () => {
 
     expect(response.status).toBe(200);
     expect(response.statusText).toBe('OK');
-    expect(Object.fromEntries([...response.headers.entries()])).toEqual({
+    expect(Object.fromEntries(response.headers.entries())).toEqual({
       'content-length': '4',
       'content-type': 'application/octet-stream',
       etag: '"098f6bcd4621d373cade4e832627b4f6"',
