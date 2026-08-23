@@ -24,6 +24,8 @@ A minimal static file handler for chubbyts-undici-server.
 ## Requirements
 
  * node: 22
+ * [@chubbyts/chubbyts-dic-config-factory][6]: ^1.0.0
+ * [@chubbyts/chubbyts-dic-types][4]: ^2.3.0
  * [@chubbyts/chubbyts-http-error][2]: ^3.4.0
  * [@chubbyts/chubbyts-undici-server][3]: ^1.2.0
 
@@ -32,7 +34,7 @@ A minimal static file handler for chubbyts-undici-server.
 Through [NPM](https://www.npmjs.com) as [@chubbyts/chubbyts-undici-static-file][1].
 
 ```ts
-npm i @chubbyts/chubbyts-undici-static-file@^1.2.0
+npm i @chubbyts/chubbyts-undici-static-file@^1.3.0
 ```
 
 ## Usage
@@ -54,6 +56,60 @@ const route = createGetRoute({
 });
 ```
 
+### Service factories (chubbyts-dic-config)
+
+The package ships service factories (abstract factories built on [chubbyts-dic-config-factory][6]) for a [chubbyts-dic-config][5] (or any [chubbyts-dic-types][4] compatible) container within `@chubbyts/chubbyts-undici-static-file/dist/service-factory`, configured through `config.chubbyts.staticFile`:
+
+```ts
+import type { ConfigFactory } from '@chubbyts/chubbyts-dic-config/dist/dic-config';
+import { createContainerByConfigFactory } from '@chubbyts/chubbyts-dic-config/dist/dic-config';
+import type { StaticFileConfig } from '@chubbyts/chubbyts-undici-static-file/dist/service-factory';
+import { staticFileHandlerServiceFactory } from '@chubbyts/chubbyts-undici-static-file/dist/service-factory';
+import type { Handler } from '@chubbyts/chubbyts-undici-server/dist/server';
+
+const container = createContainerByConfigFactory({
+  chubbyts: {
+    staticFile: {
+      publicDirectory: '/path/to/public/directory', // required
+      // hashAlgorithm: 'md5',
+    } satisfies StaticFileConfig,
+  },
+  dependencies: {
+    factories: new Map<string, ConfigFactory>([
+      ['staticFileHandler', staticFileHandlerServiceFactory()],
+    ]),
+  },
+})();
+
+const staticFileHandler = container.get<Handler>('staticFileHandler');
+```
+
+The `staticFileHandlerServiceFactory` uses the service `staticFileMimeTypes` of the container if registered, and creates it through the shipped `mimeTypesServiceFactory` (the bundled mime types) otherwise. Register it under its name to replace the mime types (e.g. a reduced or extended `Map`) or to share them with other services.
+
+#### With names
+
+To serve different directories, the same factories can be registered multiple times with a name: the config is then read from `config.chubbyts.staticFile.<name>` and the name gets appended to each service id (`staticFileHandlerassets`, `staticFileMimeTypesassets`, ...).
+
+```ts
+const container = createContainerByConfigFactory({
+  chubbyts: {
+    staticFile: {
+      assets: { publicDirectory: '/path/to/assets' },
+      uploads: { publicDirectory: '/path/to/uploads', hashAlgorithm: 'sha1' },
+    } satisfies Record<string, StaticFileConfig>,
+  },
+  dependencies: {
+    factories: new Map<string, ConfigFactory>([
+      ['staticFileHandlerassets', staticFileHandlerServiceFactory('assets')],
+      ['staticFileHandleruploads', staticFileHandlerServiceFactory('uploads')],
+    ]),
+  },
+})();
+
+const assetsHandler = container.get<Handler>('staticFileHandlerassets');
+const uploadsHandler = container.get<Handler>('staticFileHandleruploads');
+```
+
 ## Copyright
 
 2026 Dominik Zogg
@@ -61,3 +117,6 @@ const route = createGetRoute({
 [1]: https://www.npmjs.com/package/@chubbyts/chubbyts-undici-static-file
 [2]: https://www.npmjs.com/package/@chubbyts/chubbyts-http-error
 [3]: https://www.npmjs.com/package/@chubbyts/chubbyts-undici-server
+[4]: https://www.npmjs.com/package/@chubbyts/chubbyts-dic-types
+[5]: https://www.npmjs.com/package/@chubbyts/chubbyts-dic-config
+[6]: https://www.npmjs.com/package/@chubbyts/chubbyts-dic-config-factory
