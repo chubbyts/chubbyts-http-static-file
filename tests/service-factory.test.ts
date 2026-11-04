@@ -44,7 +44,11 @@ const sha1Etag = '"372ea08cab33e71c02c651dbc83a474d32c676ea"';
 
 describe('mimeTypesServiceFactory', () => {
   test('create', () => {
-    expect(mimeTypesServiceFactory()()).toBe(mimeTypes);
+    const [container, containerMocks] = useObjectMock<Container>([]);
+
+    expect(mimeTypesServiceFactory()(container)).toBe(mimeTypes);
+
+    expect(containerMocks).toHaveLength(0);
   });
 });
 
